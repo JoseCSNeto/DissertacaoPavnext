@@ -1,133 +1,45 @@
-
 #include <Wire.h>
 
-const byte MY_ADDRESS = 10;
-const byte BROADCAST = 0;
-const byte LOCALMASTER1_ADDRESS = 1;
-const byte LOCALMASTER2_ADDRESS = 2;
-const byte LED = 13;
+//const byte ledPin = 13;
+const byte interruptPin = 2;
+volatile byte state = LOW;
 
-String text;
-byte nextLocalMaster = 1;
-int localmasterResponse = 0;
-
-void getText(){
-  if(Serial.available()) // check if we send a message
-  {
-    while(Serial.available())
-    {
-      char c = Serial.read(); // read the next character.
-      text += c;
-      delay(10);
-    } 
-  }
-}
-
-void sendText() {
-  Wire.beginTransmission(0); // transmit to device 
-  for(int i=0; i<(text.length()); i++){
-    Wire.write(text[i]);
-  }             
-  Wire.endTransmission();    // stop transmitting
-  requestText();
-}
-
-void requestText() {
-  /*
-  switch (nextLocalMaster)
-  {
-  case 1:
-    if(Wire.requestFrom(1, 8) == 0)
-      localmasterResponse = -1; //Error from request
-    
-    else{
-      localmasterResponse = 2; //if crc correct, assign response as valid - ToDo
-      Serial.print("Received: ");
-      for (byte i = 0; i < 8; i++){
-        char c = Wire.read();       // receive a byte as character
-        Serial.print(c);         // print the character
-      }
-      Serial.print("\n");
-    }
-    break;
-  
-  case 2:
-    if(Wire.requestFrom(1, 8) == 0)
-      localmasterResponse = -1; //Error from request
-    
-    else{
-      localmasterResponse = 2; //if crc correct, assign response as valid - ToDo
-      Serial.print("Received: ");
-      for (byte i = 0; i < 8; i++){
-        char c = Wire.read();       // receive a byte as character
-        Serial.print(c);         // print the character
-      }
-      Serial.print("\n");
-    }
-    break;
-  }*/
-    if(Wire.requestFrom(1, 8) == 0){
-      Serial.println("Erro no request 1");
-      localmasterResponse = -1; //Error from request
-    }
-    
-    else{
-      localmasterResponse = 1; //if crc correct, assign response as valid - ToDo
-      Serial.print("Received: ");
-      for (byte i = 0; i < 8; i++){
-        char c = Wire.read();       // receive a byte as character
-        Serial.print(c);         // print the character
-      }
-      Serial.print("\n");
-    }
-
-    if(Wire.requestFrom(2, 8) == 0){
-      Serial.println("Erro no request 2");
-      localmasterResponse = -1; //Error from request
-    }
-    
-    else{
-      localmasterResponse = 2; //if crc correct, assign response as valid - ToDo
-      Serial.print("Received: ");
-      for (byte i = 0; i < 8; i++){
-        char c = Wire.read();       // receive a byte as character
-        Serial.print(c);         // print the character
-      }
-      Serial.print("\n");
-    }
-}
-
-
-void receiveString(int bytes) {
-  text = "";
-  while (Wire.available()) {
-    char c = Wire.read(); // receive a byte as character
-    text += c;
-  }
-  Serial.print("Printing: ");
-  Serial.println(text);
-
-  sendText();
-}
-
-void setup() {
+void setup()
+{
+  // Los master pueden obviar este ID, pero al querer recibir datos, tendremos que ponerlo
+  Wire.begin(1); // Se une al bus i2C con la ID #0
+  Wire.onReceive(receiveEvent); // Función a ejecutar al recibir datos
   Serial.begin(9600);
-  Serial.println("Master here");
- 
-  // Start the I2C Bus as Master
-  Wire.begin();
-  Wire.onReceive(receiveString);
 
+  //pinMode(ledPin, OUTPUT);
 }
 
-void loop() {
-  text = "";
-  while(text.length() == 0) { // Until we send text in the serial monitor
-    getText();
-    }
-  if(text.length() > 0) {
-     Serial.println("Send: " + text);
-     sendText();
+void loop()
+{
+}
+// Esta función se ejecutará al recibir datos, lo cual provocará que se salga del loop principal.
+void receiveEvent(int howMany)
+{
+
+  while(1 < Wire.available()) // hacemos loop por todos los bytes salvo el último
+  {
+    char c = Wire.read();    // recibe un byte como carácter
+    Serial.print(c);         // imprime el carácter
   }
-  delay(500);
+  int x = Wire.read();       // recibe el último byte como número
+  Serial.println(x);         // imprime el número
+  //blink();
 }
+
+/*
+void blink() {
+    if (state == HIGH) {
+    // turn LED on:
+    digitalWrite(ledPin, HIGH);
+  } else {
+    // turn LED off:
+    digitalWrite(ledPin, LOW);
+  }
+  state = !state;
+}
+*/
