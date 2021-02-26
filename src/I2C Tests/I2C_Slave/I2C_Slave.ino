@@ -1,6 +1,6 @@
 
-#include <Arduino.h>
 #include <Wire.h>
+/*#include <Arduino.h>
 #include <Adafruit_HTS221.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LIS3DH.h>
@@ -17,7 +17,7 @@
 #include "usart.h"
 #include "CRC16.h"
 #include "MCP3221.h"
-#include "SparkFun_ADXL345.h"
+#include "SparkFun_ADXL345.h"*/
 
 #define F_CPU 16000000UL
 void receiveEvent(int howMany);
@@ -29,7 +29,7 @@ int can_send = 0;
 void setup()
 {
 	// Los master pueden obviar este ID, pero al querer recibir datos, tendremos que ponerlo
-	Wire.begin(4); // Se une al bus i2C con la ID #0
+	Wire.begin(2); // Se une al bus i2C con la ID #0
 	Wire.onReceive(receiveEvent); // Función a ejecutar al recibir datos
   	pinMode(interruptPin, INPUT_PULLUP);
   	attachInterrupt(digitalPinToInterrupt(interruptPin), send, RISING);

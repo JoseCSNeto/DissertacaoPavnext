@@ -16,6 +16,7 @@ void setup()
 
 void loop()
 {
+  ;
 }
 // Esta función se ejecutará al recibir datos, lo cual provocará que se salga del loop principal.
 void receiveEvent(int howMany)
