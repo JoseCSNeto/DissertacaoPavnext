@@ -1,6 +1,7 @@
 #ifndef commmacros_h
 #define commmacros_h
 //Communication macros
+
 /**
  * @brief Char 'M'
  * 
@@ -42,15 +43,15 @@
  */
 #define RLTV_HUMDT 'R'
 /**
+ * @brief Char 'T' of Temperature
+ * 
+ */
+#define TEMPERATURE 'T'
+/**
  * @brief Char '9'
  * 
  */
 #define MASTER_ID '9'
-/**
- * @brief Char '0'
- * 
- */
-#define LOCAL_MASTER_ID '0'
 /**
  * @brief Char '1'
  * 
@@ -64,15 +65,25 @@
 
 //messages sizes macros
 /**
- * @brief Data from packet size
+ * @brief Size of the data from slave's packet
  * 
  */
 #define DATA_SIZE 9
 /**
- * @brief Data + CRC size
+ * @brief Data + CRC size from slave's packet
  * 
  */
 #define DATA_SIZE_CRC DATA_SIZE + 2
+/*
+ * @brief Size of the data from LM's packet
+ * 
+ */
+#define MASTER_DATA_SIZE 10
+/**
+ * @brief Data + CRC size from LM's packet
+ * 
+ */
+#define MASTER_DATA_SIZE_CRC MASTER_DATA_SIZE + 2
 /**
  * @brief Size of messages such as 'OX', 'CX' (car detected by slave #X) or 'PX' 
  * 
@@ -83,4 +94,5 @@
  * 
  */
 #define ALERT_MESSAGES_SIZE 3
+
 #endif

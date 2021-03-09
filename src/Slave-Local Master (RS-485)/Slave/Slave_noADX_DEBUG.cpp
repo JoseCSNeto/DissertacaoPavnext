@@ -2,7 +2,7 @@
  * @file slave1_adx.cpp
  * @author José Neto (up201603912@fe.up.pt)
  * @brief Slave Communication with the Local-Master
- * @version 1.2
+ * @version 1.1
  * @date 2021-03-08
  * 
  * @copyright Copyright (c) 2021
@@ -359,7 +359,7 @@ int main(void)
 		uart_putstr(failedHTS);
 	}*/
 
-    ADXInit();
+    //ADXInit();
     //HTSReadings = milliSec();
 
     while (1)
@@ -410,7 +410,8 @@ int main(void)
                     if (peek == MY_SLAVE_ID)
                     {
                         LocalMasterAccepting = true;
-                        adxl.ActivityINT(1);
+						carDetectedTrigger = true;
+                      //  adxl.ActivityINT(1);
                         EIMSK |= (1 << INT1); // Turns on INT1
                         EIFR = (1 << INTF1);  // Clear interrupt
                     }
@@ -439,7 +440,7 @@ int main(void)
 
                 sensorsReadingsReady = false;
 
-                adxl.ActivityINT(0);
+               // adxl.ActivityINT(0);
                 EIFR = (1 << INTF1); // Clear interrupt
                 EIMSK = (0 << INT1); // Turns off INT1
                 wheelStart[Wheel] = milliSec();
