@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file slave1_adx.cpp
  * @author José Neto (up201603912@fe.up.pt)
  * @brief Slave Communication with the Local-Master
@@ -430,7 +430,7 @@ int main(void)
         if (carDetectedTrigger)
         {
             carDetectedTrigger = false;
-            ADXInterruptSource = adxl.getInterruptSource();
+            //ADXInterruptSource = adxl.getInterruptSource();
 
             if (LocalMasterAccepting)
             {
