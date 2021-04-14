@@ -35,7 +35,7 @@ void enableTX();
 void setup()
 {
   delay(3000);
-  Serial22.begin(9600);
+  Serial2.begin(9600);
   SPI.setMISO(MISO);
   SPI.setMOSI(MOSI);
   SPI.setSCLK(SCLK);
@@ -50,16 +50,16 @@ void setup()
   delay(5000);
 
   // initialize SX1262 with default settings
-  Serial22.print(F("[SX1262] Initializing ... "));
+  Serial2.print(F("[SX1262] Initializing ... "));
   int state = radio.begin(868.0, 125.0, 9, 7, SX126X_SYNC_WORD_PRIVATE, 22, 8, 0, true);
   if (state == ERR_NONE)
   {
-    Serial22.println(F("success!"));
+    Serial2.println(F("success!"));
   }
   else
   {
-    Serial22.print(F("failed, code "));
-    Serial22.println(state);
+    Serial2.print(F("failed, code "));
+    Serial2.println(state);
     while (true)
       ;
   }
@@ -76,7 +76,7 @@ void setup()
   //radio.explicitHeader();
   // radio.setCRC(2);
   // start transmitting the first packet
-  Serial22.print(F("[SX1262] Sending first packet ... "));
+  Serial2.print(F("[SX1262] Sending first packet ... "));
 
   // you can transmit C-string or Arduino string up to
   // 256 characters long
@@ -129,7 +129,7 @@ void loop()
     if (transmissionState == ERR_NONE)
     {
       // packet was successfully sent
-      Serial22.println(F("transmission finished!"));
+      Serial2.println(F("transmission finished!"));
 
       // NOTE: when using interrupt-driven transmit method,
       //       it is not possible to automatically measure
@@ -137,15 +137,15 @@ void loop()
     }
     else
     {
-      Serial22.print(F("failed, code "));
-      Serial22.println(transmissionState);
+      Serial2.print(F("failed, code "));
+      Serial2.println(transmissionState);
     }
 
     // wait a second before transmitting again
     delay(1000);
 
     // send another one
-    Serial22.print(F("[SX1262] Sending another packet ... "));
+    Serial2.print(F("[SX1262] Sending another packet ... "));
 
     // you can transmit C-string or Arduino string up to
     // 256 characters long

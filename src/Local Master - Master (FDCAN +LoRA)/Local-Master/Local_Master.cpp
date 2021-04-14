@@ -1,14 +1,14 @@
 /**
- * @file main.cpp
+ * @file Local_Master.cpp
  * @author José Neto (up201603912@fe.up.pt)
  * @brief Local Master Communication with multiple Slaves
- * @version 2.2
- * @date 2021-03-08
+ * @version 3.0
+ * @date 2021-03-25
  * 
  * 
  */
 
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 #include <CRC16.h>
 #include <RadioLib.h>
 #include <SPI.h>
@@ -18,52 +18,14 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "nucleo_g431kb_RS485.h"
-#include "nucleo_g431kb_FDCAN.h"
+//#include "nucleo_g431kb_RS485.h"
+#include "LM_FDCAN.h"
 #include "communicationMacros.h"
-/**
- * @brief  Local Master ID. Only need to change this value in order to be used by different boards
- * 
- */
-#define MY_LM_ID '1'
-//DEFAULT MESSAGES
-/**
- * @brief Pre-defined message for 'OX' -> notifies the slave #X that it can communicate
- * 
- */
-byte ACCEPTING_COMMUNICATION_SV_X[DEFAULT_MESSAGES_SIZE] = {LOCAL_MASTER_ACCEPTING_COMMUNICATION, (byte)'x'};
-/**
- * @brief Pre-defined message for 'PX' -> notifies the slave #X that a packet from it is expected
- * 
- */
-byte WAITING_PACKET_SV_X[DEFAULT_MESSAGES_SIZE] = {WAITING_FOR_PACKET, (byte)'x'};
+#include "LM_macros.h"
 
-//packet arrays initialization
-/**
- * @brief Packet received
- * 
- */
-byte packetReceived[DATA_SIZE_CRC];
-/**
- * @brief Retrieved data from the packet received (excludes the CRC)
- * 
- */
-char dataFromPacket[DATA_SIZE];
-/**
- * @brief Array of slave's packets to be sent later from the LM to the Master
- * 
- */
-uint8_t slavesPackets[NUMBER_OF_SLAVES - 48][MASTER_DATA_SIZE_CRC];
-/**
- * @brief Used in messages such as 'CX' (car detected by slave #X)
- * 
- */
-byte defaultMessage[DEFAULT_MESSAGES_SIZE];
-/**
- * @brief Used in messages such as high/low temperature alerts sent by slaves
- * 
- */
-byte alertMessage[ALERT_MESSAGES_SIZE];
+//functions headers
+void LMStorePacket(int slaveID);
+void LMWaitingCar(int slaveASCII);
 
 /**
  * @brief CRC retrieved from the packet received.
@@ -77,111 +39,107 @@ uint16_t packetCRC;
  */
 uint16_t calculatedCRC;
 
-//flags
+byte packetReceived[DATA_SIZE_CRC];
 /**
- * @brief Flag that tells the local-master if the master is accepting communication from it
+ * @brief Retrieved data from the packet received (excludes the CRC)
  * 
  */
-bool masterAccepting = true;
-/**
- * @brief Flag that tells the local-master if it is waiting for a car
- * 
- */
-bool waitingCar = false;
-/**
- * @brief Flag that tells the local-master if it is waiting for a packet
- * 
- */
-bool waitingPacket = false;
-/**
- * @brief Defines who is the next slave to send the 'accepting_communication' marco
- * 
- */
-uint8_t nextSlave = 0;
-/**
- * @brief Which slaveID is expected to be received in the next packet
- * 
- */
-uint8_t waitingPacketSlaveID = 0;
-/**
- * @brief Slave ID from the received packet. When compared to 'waitingPacketSlaveID' validates or excludes the packet
- * 
- */
-uint8_t packetReceivedID = 0;
-/**
- * @brief Packets are ready to be sent to the master
- * 
- */
-bool packetsReady = false;
+char dataFromPacket[DATA_SIZE];
 
 /**
- * @brief Detects which car wheel/half triggered the slave 
+ * @brief Used in messages such as 'CX' (car detected by slave #X)
  * 
  */
-uint8_t Wheel = 0;
-
-/**
- * @brief Available RS485 bytes
- * 
- */
-uint8_t bytes = 0;
-
-//timers
-/**
- * @brief Used for waiting for 20 ms to send 'WAITING_PACKET_SV_X'
- * 
- */
-unsigned long slaveTimer;
-
-/**
- * @brief Aux variables, used in 'for' loops
- * 
- */
-uint8_t n = 0;
-uint8_t j = 0;
-
-
-//functions headers
-void LMStorePacket(int slaveID);
-void LMWaitingCar(int slaveASCII);
-void sendPacket(byte *buf, int len);
-
-uint8_t TxData[5] = {104, 101, 108, 108, 111};
-
+byte defaultMessage[DEFAULT_MESSAGES_SIZE];
+uint8_t LMHello[7] = {108, 111, 99, 97, 108, 32, 77}; //local M
+uint32_t masterID = 9; //master fdcan ID
 
 void setup()
 {
-    Serial2.begin(9600);
+    delay(4000);
 
     pinMode(MAX485Control, OUTPUT);
     RS485Serial.begin(4800);
     delay(2000);
-    FDCANInit();
-    FDCANSend(TxData, sizeof(TxData));
-    LMWaitingCar(nextSlave);
+    Serial2.begin(9600);
+    Serial2.println("Local Master");
 
+    FDCANInit();
+    FDCANSend(LMHello, sizeof(LMHello));
+    //LMWaitingCar(nextSlave);
 }
 void loop()
 {
-    if (!masterAccepting)
+    if (canReceived)
     {
-        bytes = RS485Serial.available();
-        if (bytes == DEFAULT_MESSAGES_SIZE)
+        Serial2.print("Received packet, ID: ");
+        Serial2.println(canIdentifier);
+        for (int byte_index = 0; byte_index < canSize; byte_index++)
         {
-            for (n = 0; n < DEFAULT_MESSAGES_SIZE; n++)
+            // Serial2.print(" byte[");
+            // Serial2.print(byte_index);
+            // Serial2.print("]=");
+            Serial2.print((char)canPacket[byte_index]);
+            Serial2.print(" ");
+            //canPacket[byte_index] = canPacket[byte_index];
+        }
+        Serial2.println();
+        if (!masterAccepting)
+        {
+            if (canIdentifier == masterID && canSize == DEFAULT_MESSAGES_SIZE)
             {
-                defaultMessage[n] = RS485Serial.read();
-            }
-            if (defaultMessage[0] == MASTER_ACCEPTING_COMMUNICATION)
-            {
-                if (defaultMessage[1] == MY_LM_ID)
+                if (canPacket[0] == MASTER_ACCEPTING_COMMUNICATION && canPacket[1] == MY_LM_ID)
                 {
-                    LMWaitingCar(nextSlave);
+                    //Serial2.println("Telling the Slave x the Local Master is accepting communication");
+
+                    LMWaitingPacket = false;
+                    waitingCar = true;
                     masterAccepting = true;
+                    LMWaitingCar(nextSlave);
                 }
             }
         }
+
+        else if (masterWaitingPacket)
+        {
+            if (canSize == MASTER_MESSAGES_SIZE)
+            {
+                if (canIdentifier == masterID)
+                {
+                    if (canPacket[0] == MASTER_ASKING_PACKET && canPacket[1] == MY_LM_ID) // && canPacket[2] == waitingPacketLMID)
+                    {
+                        masterWaitingPacket = true;
+                        //waitingPacketLMID = canPacket[1];
+                        waitingPacketSlaveID = canPacket[2] - '0';
+
+                        Serial2.print("Packet from slave ");
+                        Serial2.print(waitingPacketSlaveID);
+                        Serial2.print(" to be sent to the Master: [");
+                        FDCANSend(slavesPackets[waitingPacketSlaveID - 1], sizeof(slavesPackets[waitingPacketSlaveID - 1]));
+                        for (int n = 0; n < MASTER_DATA_SIZE_CRC; n++)
+                        {
+                            Serial2.print((int)slavesPackets[waitingPacketSlaveID - 1][n]);
+                            Serial2.print(" ");
+                        }
+                        Serial2.println("]");
+                        if (waitingPacketSlaveID + '0' == NUMBER_OF_SLAVES)
+                        {
+                            masterWaitingPacket = false;
+                            masterAccepting = false;
+                           // LMWaitingCar(waitingPacketSlaveID - 1);
+                        }
+                    }
+
+                    //MASTER_ASKING_FOR_PACKET_LM_X_SLAVE_Y[1] = waitingPacketLMID;
+                    //MASTER_ASKING_FOR_PACKET_LM_X_SLAVE_Y[2] = SLAVE_ID_1;
+                    //FDCANSend(MASTER_ASKING_FOR_PACKET_LM_X_SLAVE_Y, sizeof(MASTER_ASKING_FOR_PACKET_LM_X_SLAVE_Y));
+                }
+            }
+        }
+        canSize = 0;
+        canReceived = false;
     }
+
     if (waitingCar)
     {
         bytes = RS485Serial.available();
@@ -194,14 +152,16 @@ void loop()
             {
                 defaultMessage[n] = RS485Serial.read();
                 Serial2.print("defaultMessage[n]: ");
-                Serial2.println(defaultMessage[n]);   
+                Serial2.println(defaultMessage[n]);
             }
             if (defaultMessage[0] == CAR_DETECTED) //ASCII 'C' - Slave X telling a car passed
             {
-                Serial2.println("Car detected");
+                Serial2.print("Car detected: ");
 
                 if (defaultMessage[1] >= SLAVE_ID_1 && defaultMessage[1] <= NUMBER_OF_SLAVES)
                 {
+                    Serial2.println(defaultMessage[1]);
+
                     Serial2.println("Tell the Slave it can send a packet");
                     WAITING_PACKET_SV_X[1] = defaultMessage[1];                       //Updating the Slave_ID from the packet received
                     sendPacket(WAITING_PACKET_SV_X, sizeof(WAITING_PACKET_SV_X) + 1); // PX-> master waiting for a packet from Slave_X
@@ -266,17 +226,17 @@ void loop()
                 {
                     LMStorePacket(packetReceivedID - 48); //ASCII code to correspondent number. ex. ('1') 49 - 48  -> 1
                     Serial2.println("CRC correct");
-
-                } 
+                }
                 Serial2.print("SLAVE No: ");
                 Serial2.print((char)packetReceived[0]);
-                Serial2.print(" sent a packet to dest: ");
+                Serial2.print(" sent a packet to LM: ");
                 Serial2.println((char)packetReceived[1]);
 
                 slaveTimer = millis();
                 while ((millis() - slaveTimer < 100))
                     ;
-                LMWaitingCar(waitingPacketSlaveID);
+                // if (waitingPacketSlaveID < NUMBER_OF_SLAVES - '0')
+                //     LMWaitingCar(waitingPacketSlaveID);
             }
         }
     }
@@ -311,15 +271,15 @@ void loop()
  */
 void LMStorePacket(int slaveID)
 {
-    slavesPackets[slaveID - 1][0] = MY_LM_ID;
-    slavesPackets[slaveID - 1][1] = MASTER_ID;
+    slavesPackets[slaveID - 1][0] = MASTER_ID;
+    slavesPackets[slaveID - 1][1] = MY_LM_ID;
     slavesPackets[slaveID - 1][2] = packetReceivedID;
     for (n = 3; n <= DATA_SIZE; n++)
     {
         slavesPackets[slaveID - 1][n] = dataFromPacket[n - 1];
     }
 
-    packetCRC = calc_crc((char*)slavesPackets[slaveID - 1], MASTER_DATA_SIZE); //Calculate CRC
+    packetCRC = calc_crc((char *)slavesPackets[slaveID - 1], MASTER_DATA_SIZE); //Calculate CRC
 
     slavesPackets[slaveID - 1][MASTER_DATA_SIZE] = (packetCRC >> 8);     //MSB
     slavesPackets[slaveID - 1][MASTER_DATA_SIZE + 1] = packetCRC & 0xff; //LSB -> last byte -> DATA_SIZE + 1 = last position
@@ -327,41 +287,37 @@ void LMStorePacket(int slaveID)
     if (slaveID == NUMBER_OF_SLAVES - 48)
     {
         packetsReady = true;
+        if (masterAccepting)
+        {
+            Serial2.println("Telling the master that slave packets are ready to be sent");
+            LM_X_READY_TO_SEND_PACKET[1] = MY_LM_ID;
+            FDCANSend(LM_X_READY_TO_SEND_PACKET, sizeof(LM_X_READY_TO_SEND_PACKET));
+            packetsReady = false;
+            masterWaitingPacket = true;
+        }
+    }
+    else{
+        LMWaitingCar(slaveID);
     }
 
-    if (packetsReady && masterAccepting)
-    {
-        for (j = 0; j < NUMBER_OF_SLAVES - 48; j++)
-        {
-            Serial2.print("Packet from slave ");
-            Serial2.print(j);
-            Serial2.print(" to be sent to the Master: [");
-            FDCANSend(slavesPackets[j], sizeof(slavesPackets[j]));
-            for (n = 0; n < MASTER_DATA_SIZE_CRC; n++)
-            {
-                Serial2.print((int)slavesPackets[j][n]);
-                Serial2.print(" ");
-            }
-            Serial2.println("]");
-        }
-        packetsReady = false;
-        masterAccepting = true;
-    }
+
 }
 /**
  * @brief Notify the slave that the Local-Master is accepting communication
  * 
- * @param slaveASCII The ASCII code of the previous slave
+ * @param slaveID The previous slave ID
  */
-void LMWaitingCar(int slaveASCII) // slaveASCII is the ASCII code of the slave #
+void LMWaitingCar(int slaveID)
 {
-    Serial2.println("Telling the Slave #slaveASCII the Master is accepting communication");
+    Serial2.print("Telling the Slave x ");
+    Serial2.print(slaveID);
+    Serial2.println(" Local Master is accepting communication");
 
     waitingPacket = false;
     waitingCar = true;
 
-    if (slaveASCII < NUMBER_OF_SLAVES)
-    { //mudar quando houver mais slaves
+    if (slaveID < NUMBER_OF_SLAVES - 48)
+    {
         nextSlave = nextSlave + 1;
     }
     else
@@ -370,17 +326,8 @@ void LMWaitingCar(int slaveASCII) // slaveASCII is the ASCII code of the slave #
     }
 
     ACCEPTING_COMMUNICATION_SV_X[1] = nextSlave + '0';
+    
+    Serial2.print("ACCEPTING_COMMUNICATION_SV_X ");
+    Serial2.println(ACCEPTING_COMMUNICATION_SV_X[1]);
     sendPacket(ACCEPTING_COMMUNICATION_SV_X, sizeof(ACCEPTING_COMMUNICATION_SV_X) + 1); // OX-> local master accepting communication from Slave_X
-}
-/**
- * @brief Enables RS485 transmissition, sends the packet and disables RS485 transmissition
- * 
- * @param buf byte array to send
- * @param len length of the data array
- */
-void sendPacket(byte *buf, int len)
-{
-    digitalWrite(MAX485Control, RS485Transmit); // Enable RS485 Transmit
-    RS485Serial.write(buf, len);
-    digitalWrite(MAX485Control, RS485Receive); // Disable RS485 Transmit
 }
