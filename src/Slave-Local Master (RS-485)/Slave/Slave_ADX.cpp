@@ -68,7 +68,7 @@ int x, y, z;
  * @brief Calibration factor for z-axis readings
  * 
  */
-double factor = 0.0383072;
+double factor = 0.30625;
 /**
  * @brief Accelerometer interrupt trigger
  * 
@@ -269,22 +269,17 @@ float maxZAccel = 0;
 
 //timers
 /**
- * @brief Variable used in the milliSec function
- * 
- */
-volatile unsigned long timer1_millis;
-/**
- * @brief Counts the elapsed milliseconds since the wheel's detection. Used in the power system calculations
+ * @brief Counts the elapsed microsonds since the wheel's detection. Used in the power system calculations
  * 
  */
 unsigned long timeStart;
 /**
- * @brief Elapsed milliseconds since the last reading after the wheel detection (readings every 5 ms)
+ * @brief Elapsed microsonds since the last reading after the wheel detection (readings every 5 ms)
  * 
  */
 unsigned long wheelStart[2];
 /**
- * @brief Counts the elapsed milliseconds since the wheel detection. Used in the power system calculations
+ * @brief Counts the elapsed microsonds since the wheel detection. Used in the power system calculations
  * 
  */
 unsigned long wheelTimer[2];
@@ -294,7 +289,7 @@ unsigned long wheelTimer[2];
  */
 #define HTSTimer 60
 /**
- * @brief Counts the elapsed milliseconds since the last temperature/RH readings. Currently reading every minute
+ * @brief Counts the elapsed microsonds since the last temperature/RH readings. Currently reading every minute
  * 
  */
 unsigned long HTSReadings;
@@ -321,10 +316,16 @@ char HIGH_TEMP[ALERT_MESSAGES_SIZE] = {HIGH_VALUE, TEMPERATURE, MY_SLAVE_ID};
  */
 char NORMAL_TEMP[ALERT_MESSAGES_SIZE] = {NORMAL_VALUE, TEMPERATURE, MY_SLAVE_ID};
 
+//new
+
+float maxZ = 0;
+int readTimeout = 0;
+bool readAccel = false;
+int countMaxZ = 0;
+#define countMax 50
+
 //functions headers
-void readSensors(int Wheel); 
-void initMilliS(unsigned long f_cpu);
-unsigned long milliSec();
+void readSensors(int Wheel);
 void ADXInit(void);
 uint16_t ADCRead(uint8_t ch);
 void ADCInit();
@@ -339,7 +340,6 @@ int main(void)
     Wire.begin();
     ADCInit();
     uart_init(BAUD_CALC(4800)); // 8n1 transmission is set as default
-    initMilliS(F_CPU);          // frequency the atmega328p is running at
     sei();                      // enable interrupts
     //uart_putstr("hello from slave");
     //for (int i = 0; i<1000;i++)
@@ -360,14 +360,14 @@ int main(void)
 	}*/
 
     ADXInit();
-    //HTSReadings = milliSec();
+    //HTSReadings = micros();
 
     while (1)
     {
         /*
-        if (milliSec() - HTSReadings > HTSTimer * 1000)
+        if (micros() - HTSReadings > HTSTimer * 1000)
         {
-            HTSReadings = milliSec();
+            HTSReadings = micros();
             hts.getEvent(&humidity, &temp);
 
             if (humidity.relative_humidity > MAX_RLTV_HUMD)
@@ -442,9 +442,11 @@ int main(void)
                 adxl.ActivityINT(0);
                 EIFR = (1 << INTF1); // Clear interrupt
                 EIMSK = (0 << INT1); // Turns off INT1
-                wheelStart[Wheel] = milliSec();
+                wheelStart[Wheel] = micros();
                 Wheel++;
-                timeStart = milliSec();
+                timeStart = micros();
+                readTimeout = 1600;
+                readAccel = true;
             }
         }
 
@@ -501,7 +503,7 @@ int main(void)
             canSendPacket = false;
             LocalMasterAccepting = false;
         }
-        if (Wheel == 1 && (milliSec() - wheelStart[0] >= 5000))
+        if (Wheel == 1 && (micros() - wheelStart[0] >= 5000))
         {
             Wheel = 0;
             carCount--;
@@ -516,11 +518,33 @@ int main(void)
 void readSensors(int Wheel)
 {
 
-    if (milliSec() - wheelStart[Wheel - 1] >= 5)
+    if (micros() - wheelStart[Wheel - 1] >= readTimeout)
     {
+        wheelStart[Wheel - 1] = micros(); //reset the timer
         //hts.getEvent(&humidity, &temp);
-        adxl.readAccel(&x, &y, &z); // Read the accelerometer values and store them in variables declared above x,y,z
+        if (readAccel)
+            adxl.readAccel(&x, &y, &z); // Read the accelerometer values and store them in variables declared above x,y,z
+        else
+            z = 0;
         measuredZAccel = z * factor;
+
+        if (measuredZAccel > maxZ)
+        {
+            maxZ = measuredZAccel;
+            countMaxZ = 0;
+            readAccel = true;
+        }
+
+        else
+        {
+            countMaxZ++;
+            if (countMaxZ >= 10)
+            {
+                countMaxZ = 0;
+                readTimeout = 1000;
+                readAccel = false;
+            }
+        }
 
         //Biela1Voltage = mcp3221_biela1.getVoltage();
         //Biela2Voltage = mcp3221_biela2.getVoltage();
@@ -551,19 +575,18 @@ void readSensors(int Wheel)
         power_I += (double)(voltage_V1 * current_I1);
         power_II += (double)(voltage_V2 * current_I2);
 
-        wheelStart[Wheel - 1] = milliSec(); //reset the timer
         count++;
 
-        if (count == 10)
+        if (count == countMax)
         {
             sensorsReadingsReady = true;
             count = 0;
-            wheelTimer[Wheel - 1] = milliSec() - timeStart;
-            energy_I = (double)power_I * wheelTimer[Wheel - 1] / 1000;
-            energy_II = (double)power_II * wheelTimer[Wheel - 1] / 1000;
+            wheelTimer[Wheel - 1] = micros() - timeStart;
+            energy_I = (double)power_I * wheelTimer[Wheel - 1] / 10000;
+            energy_II = (double)power_II * wheelTimer[Wheel - 1] / 10000;
             if (Wheel == 2)
                 Wheel = 0;
-                carCount++;
+            carCount++;
         }
     }
 }
@@ -592,7 +615,7 @@ void ADXInit()
     else if (!error)
     {
         adxl.powerOn();                                   // Power on the ADXL345
-        adxl.setRangeSetting(2);                          // Give the range settings
+        adxl.setRangeSetting(16);                         // Give the range settings
         adxl.setActivityXYZ(0, 0, 1);                     // Set to activate movement detection in the axes "adxl.setActivityXYZ(X, Y, Z);" (1 == ON, 0 == OFF)
         adxl.setActivityThreshold(40);                    // 62.5mg per increment   // Set activity   // Inactivity thresholds (0-255)
         adxl.setImportantInterruptMapping(1, 1, 1, 1, 1); // Sets "adxl.setEveryInterruptMapping(single tap, double tap, free fall, activity, inactivity);"
@@ -614,53 +637,7 @@ void ADXInit()
         byte interrupts = adxl.getInterruptSource();
     }
 }
-/**
- * @brief Timer interrupt
- * 
- */
-ISR(TIMER1_COMPA_vect)
-{
-    timer1_millis++;
-}
-/**
- * @brief Initializes the function that counts the elapsed seconds
- * 
- * @param f_cpu CPU's clock frequency
- */
-void initMilliS(unsigned long f_cpu)
-{
-    unsigned long ctc_match_overflow;
 
-    ctc_match_overflow = ((f_cpu / 1000) / 8); //when timer1 is this value, 1ms has passed
-
-    // (Set timer to clear when matching ctc_match_overflow) | (Set clock divisor to 8)
-    TCCR1B |= (1 << WGM12) | (1 << CS11);
-
-    // high byte first, then low byte
-    OCR1AH = (ctc_match_overflow >> 8);
-    OCR1AL = ctc_match_overflow;
-
-    // Enable the compare match interrupt
-    TIMSK1 |= (1 << OCIE1A);
-
-    //REMEMBER TO ENABLE GLOBAL INTERRUPTS AFTER THIS WITH sei(); !!!
-}
-/**
- * @brief Counts the elapsed seconds
- * 
- * @return unsigned long elapsed seconds
- */
-unsigned long milliSec()
-{
-    unsigned long millis_return;
-
-    // Ensure this cannot be disrupted
-    ATOMIC_BLOCK(ATOMIC_FORCEON)
-    {
-        millis_return = timer1_millis;
-    }
-    return millis_return;
-}
 /**
  * @brief ADC Initialization (based on http://maxembedded.com/2011/06/the-adc-of-the-avr)
  * 
