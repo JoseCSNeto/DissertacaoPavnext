@@ -1,5 +1,5 @@
 /**
- * @file main.h
+ * @file nucleo_g431kb_RS485.h
  * @author José Neto (up201603912@fe.up.pt)
  * @brief Local Master RS485 Macros
  * @version 2.1
@@ -7,26 +7,22 @@
  * 
  * 
  */
-#ifndef main_h
-#define main_h
+#ifndef nucleo_g431kb_RS485_h
+#define nucleo_g431kb_RS485_h
 
 #include <SoftwareSerial.h>
-#include <CRC16.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
 
 //RS485 related
 /**
  * @brief nucleo_g431kb's pin to connect to MAX485's Receive (RO)
  * 
  */
-#define MAX485RX PB4
+#define MAX485RX PB7
 /**
  * @brief nucleo_g431kb's pin to connect to MAX485's Transmit (DI)
  * 
  */
-#define MAX485TX PB5
+#define MAX485TX PB6
 /**
  * @brief nucleo_g431kb's pin to connect to MAX485's Direction control (DE)
  * 
@@ -46,26 +42,21 @@
 
 //Serial related
 /**
- * @brief nucleo_g431kb's Serial1 RX pin
+ * @brief nucleo_g431kb's Serial2 RX pin
  * 
  */
-#define Serial1RX PA3
+#define Serial2RX PA3
 /**
- * @brief nucleo_g431kb's Serial1 TX pin
+ * @brief nucleo_g431kb's Serial2 TX pin
  * 
  */
-#define Serial1TX PA2
+#define Serial2TX PA2
 /**
- * @brief Defines 'Serial1' as nucleo_g431kb's USART1. Used for debug (Serial.print)
+ * @brief Defines 'Serial1' as nucleo_g431kb's USART2. Used for debug (Serial.print)
  * 
  * @return HardwareSerial 
  */
-HardwareSerial Serial1(Serial1RX, Serial1TX); // RX, TX
-/**
- * @brief Defines 'RS485Serial' as nucleo_g431kb's SoftwareSerial
- * 
- * @return SoftwareSerial 
- */
-SoftwareSerial RS485Serial(MAX485RX, MAX485TX); // RX, TX
+//HardwareSerial Serial2(Serial2RX, Serial2TX); // RX, TX
 
+extern SoftwareSerial RS485Serial;
 #endif

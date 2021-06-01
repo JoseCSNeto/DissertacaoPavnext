@@ -10,6 +10,8 @@
 
 #include <SoftwareSerial.h>
 #include <CRC16.h>
+#include <SPI.h>
+#include <Wire.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -121,7 +123,7 @@ void sendPacket(byte *buf, int len);
 
 void setup()
 {
-    Serial1.begin(4800);
+    Serial2.begin(4800);
 
     pinMode(MAX485Control, OUTPUT);
     RS485Serial.begin(4800);
@@ -143,7 +145,7 @@ void loop()
             {
                 if (defaultMessage[1] >= SLAVE_ID_1 && defaultMessage[1] <= NUMBER_OF_SLAVES)
                 {
-                    Serial1.println("Tell the Slave it can send a packet");
+                    Serial2.println("Tell the Slave it can send a packet");
                     WAITING_PACKET_SV_X[1] = defaultMessage[1];                       //Updating the Slave_ID from the packet received
                     sendPacket(WAITING_PACKET_SV_X, sizeof(WAITING_PACKET_SV_X) + 1); // PX-> master waiting for a packet from Slave_X
                     waitingPacket = true;
@@ -157,39 +159,39 @@ void loop()
     else if (waitingPacket)
     {
         bytes = RS485Serial.available();
-        //Serial1.print("A espera de packet: ");
-        //Serial1.println(bytes);
+        //Serial2.print("A espera de packet: ");
+        //Serial2.println(bytes);
         //delay(2);
         if (bytes == DATA_SIZE_CRC)
         {
             for (n = 0; n < DATA_SIZE_CRC; n++)
                 packetReceived[n] = RS485Serial.read();
 
-            Serial1.print("Packet received: [");
-            Serial1.print(packetReceived[0]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[1]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[2]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[3]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[4]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[5]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[6]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[7]);
-            Serial1.print(" ");
-            Serial1.print(packetReceived[8]);
-            Serial1.println("]");
+            Serial2.print("Packet received: [");
+            Serial2.print(packetReceived[0]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[1]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[2]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[3]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[4]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[5]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[6]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[7]);
+            Serial2.print(" ");
+            Serial2.print(packetReceived[8]);
+            Serial2.println("]");
 
             packetReceivedID = (int)packetReceived[0];
 
             if (packetReceivedID != waitingPacketSlaveID)
             {
-                Serial1.println("Packet from wrong Slave! Discarding data...");
+                Serial2.println("Packet from wrong Slave! Discarding data...");
                 LMWaitingCar(packetReceivedID);
             }
 
@@ -198,27 +200,27 @@ void loop()
                 for (n = 0; n < DATA_SIZE; n++)
                 {
                     dataFromPacket[n] = packetReceived[n]; // Extract the DATA from the PACKET
-                                                           //Serial1.print((int)dataFromPacket[n]);
+                                                           //Serial2.print((int)dataFromPacket[n]);
                 }
 
                 calculatedCRC = calc_crc(dataFromPacket, DATA_SIZE); //Calculate CRC
-                //Serial1.print("\nCRC calculado: ");
-                //Serial1.println(calculatedCRC,HEX);
+                //Serial2.print("\nCRC calculado: ");
+                //Serial2.println(calculatedCRC,HEX);
 
                 packetCRC = packetReceived[DATA_SIZE + 1] | (packetReceived[DATA_SIZE] << 8); //MSB | LSB
-                //Serial1.print("CRC packet: ");
-                //Serial1.println(packetCRC,HEX);
+                //Serial2.print("CRC packet: ");
+                //Serial2.println(packetCRC,HEX);
 
                 if (calculatedCRC == packetCRC)
                 {
-                    Serial1.println("CRC correct");
+                    Serial2.println("CRC correct");
 
                 } // Checks if the packet's CRC is the same as the calculated CRC
 
-                Serial1.print("SLAVE No: ");
-                Serial1.print((char)packetReceived[0]);
-                Serial1.print(" sent a packet to dest: ");
-                Serial1.println((char)packetReceived[1]);
+                Serial2.print("SLAVE No: ");
+                Serial2.print((char)packetReceived[0]);
+                Serial2.print(" sent a packet to dest: ");
+                Serial2.println((char)packetReceived[1]);
                 //slaveTimer = millis();
                 while ((millis() - slaveTimer < 20));
 
@@ -241,11 +243,11 @@ void loop()
       }  
       if (alertMessage[0] == HIGH_VALUE && alertMessage[1] == RLTV_HUMDT &&  alertMessage[2] == SLAVE_ID_1) //ASCII 'C' - Slave X telling a car passed
       {
-        Serial1.println("Relative humidity on slave 1 is too high!");    
+        Serial2.println("Relative humidity on slave 1 is too high!");    
       }
       else if (alertMessage[0] == NORMAL_VALUE && alertMessage[1] == RLTV_HUMDT &&  alertMessage[2] == SLAVE_ID_1) //ASCII 'C' - Slave X telling a car passed
       {
-        Serial1.println("Relative humidity on slave 1 back to normal!");    
+        Serial2.println("Relative humidity on slave 1 back to normal!");    
       }      
     }
   }*/
@@ -257,7 +259,7 @@ void loop()
  */
 void LMWaitingCar(int slaveASCII) // slaveASCII is the ASCII code of the slave #
 {
-    Serial1.println("Telling the Slave #slaveASCII the Master is accepting communication");
+    Serial2.println("Telling the Slave #slaveASCII the Master is accepting communication");
 
     waitingPacket = false;
     waitingCar = true;

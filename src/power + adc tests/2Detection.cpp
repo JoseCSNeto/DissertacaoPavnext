@@ -349,6 +349,7 @@ void ADXInit()
 		adxl.doubleTapINT(0);
 		adxl.singleTapINT(0);
 		adxl.setRate(400);
+		
 		EIFR = (1 << INTF1);  //clear interrupt
 		DDRD &= ~(1 << DDD3); // Clear the PD3 pin
 		// PD3 (PCINT1 pin) is now an input
