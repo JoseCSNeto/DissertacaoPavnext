@@ -1,0 +1,16 @@
+{
+    "name": "SRAM_23LC",
+    "keywords": "SRAM, sram, 23LC, 23LCV, 23LCV1024, SPI, driver",
+    "description": "Driver for Microchip Technology Inc. 23LC (23LCV) SPI SRAM chips for Arduino (any architecture)",
+    "authors": [
+        {
+            "name": "Justin Mattair"
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/MattairTech/SRAM_23LC.git"
+    },
+    "frameworks": "arduino",
+    "version": "1.1.2"
+}
